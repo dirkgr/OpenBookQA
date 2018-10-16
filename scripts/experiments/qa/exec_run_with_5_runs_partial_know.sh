@@ -5,7 +5,10 @@ set -x
 
 echo "Starting exec_run_with_5_runs_partial_know.sh"
 
+config_file=$1
+shift
 out_run_dir=$1
+shift
 
 if [ ! -n "${out_run_dir}" ] ; then
   echo "${out_run_dir} is empty"
@@ -13,7 +16,6 @@ if [ ! -n "${out_run_dir}" ] ; then
 fi
 
 out_base_dir=${out_run_dir}
-
 mkdir -p ${out_base_dir}
 
 num_splits=5
@@ -21,9 +23,8 @@ num_splits=5
 for ((curr_run=1;curr_run<=num_splits;curr_run++)); do
     echo "curr_run=${curr_run}"
     split_out_dir=${out_base_dir}/run0${curr_run}
-    config_file=${out_base_dir}/run0${curr_run}.json
 
-    python -u obqa/run.py train ${config_file} -s ${split_out_dir}
+    python -u obqa/run.py train ${config_file} -s ${split_out_dir} $*
     # evaluate without attentions
     python obqa/run.py evaluate_predictions_qa_mc --archive_file ${split_out_dir}/model.tar.gz --output_file ${split_out_dir}/predictions
 
@@ -41,7 +42,5 @@ for ((curr_run=1;curr_run<=num_splits;curr_run++)); do
 done
 
 metrics_files="${out_base_dir}/run01/metrics.json;${out_base_dir}/run02/metrics.json;${out_base_dir}/run03/metrics.json;${out_base_dir}/run04/metrics.json;${out_base_dir}/run05/metrics.json"
-
 python tools/merge_metrics_files.py "${metrics_files}" ${out_base_dir}/metrics.json
 echo "The combined metrics from ${num_splits} are printed in ${out_base_dir}/metrics.json"
-
