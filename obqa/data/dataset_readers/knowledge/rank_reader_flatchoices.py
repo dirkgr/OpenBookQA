@@ -33,7 +33,7 @@ class RankReader_FlatChoices_v1():
 
     def get_facts_text_with_weights_mask(self, loaded_ranks, all_know_facts, data_instance, max_facts):
         """
-        Selects the knowledge text from a global list of facts, loadaded fact rankings and current data instance.
+        Selects the knowledge text from a global list of facts, loaded fact rankings and current data instance.
         :param loaded_ranks: A trie of "instance_id->ch_[choice_id]->weights"
         :param all_know_facts:  List of json facts that contain key "text"
         :param data_instance: Current question, choices instance
@@ -68,7 +68,7 @@ class RankReader_FlatChoices_v1():
 
         instance_facts_list = [all_know_facts[fact_id]["text"] for fact_id, _ in facts_by_freq]
 
-        # currently quesiton weights are ones!
+        # currently question weights are ones!
         fields_weights_array = []
         for ch_sp_weight in fields_sparse_weights:
             non_sparse = [ch_sp_weight.get(fi, 0.0) for fi in fact_id_to_ordered_id_map]
