@@ -20,5 +20,5 @@ EXPERIMENTS_OUTPUT_DIR_BASE=_experiments
 experiment_prefix_base=${DATASET_NAME_SHORT}_$(basename $config_file)_$(date +%y-%m-%d-%H-%M-%S)-r${RANDOM}
 experiment_out_dir=${EXPERIMENTS_OUTPUT_DIR_BASE}/${experiment_prefix_base}
 
-bash scripts/experiments/qa/exec_run_with_5_runs_partial_know.sh ${config_file} ${experiment_out_dir} $*
+bash scripts/experiments/qa/exec_run_with_5_runs_partial_know.sh ${config_file} ${experiment_out_dir} "$@"
 

@@ -24,7 +24,7 @@ for ((curr_run=1;curr_run<=num_splits;curr_run++)); do
     echo "curr_run=${curr_run}"
     split_out_dir=${out_base_dir}/run0${curr_run}
 
-    python -u obqa/run.py train ${config_file} -s ${split_out_dir} $*
+    python -u obqa/run.py train ${config_file} -s ${split_out_dir} "$@"
     # evaluate without attentions
     python obqa/run.py evaluate_predictions_qa_mc --archive_file ${split_out_dir}/model.tar.gz --output_file ${split_out_dir}/predictions
 
