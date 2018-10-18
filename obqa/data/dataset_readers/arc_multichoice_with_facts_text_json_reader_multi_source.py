@@ -226,8 +226,6 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
                                             question_text,
                                             choice_text_list,
                                             facts_text_list,
-                                            question2facts_mapping,
-                                            choice2facts_mapping,
                                             answer_id,
                                             gold_facts_text_meta)
 
@@ -241,8 +239,6 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
                          question_text: str,
                          choice_text_list: List[str],
                          facts_text_list: List[str],
-                         question2facts_mapping: List[float],
-                         choice2facts_mapping: List[List[float]],
                          answer_id: int,
                          meta_fields: Dict = None) -> Instance:
         # pylint: disable=arguments-differ
@@ -255,8 +251,6 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
         fields['question'] = TextField(question_tokens, self._token_indexers)
         fields['choices_list'] = ListField([TextField(x, self._token_indexers) for x in choices_tokens_list])
         fields['facts_list'] = ListField([TextField(x, self._token_indexers) for x in facts_tokens_list])
-        fields['question2facts_map'] = ArrayField(np.asarray(question2facts_mapping))
-        fields['choice2facts_map'] = ArrayField(np.asarray(choice2facts_mapping))
 
         fields['label'] = LabelField(answer_id, skip_indexing=True)
 
