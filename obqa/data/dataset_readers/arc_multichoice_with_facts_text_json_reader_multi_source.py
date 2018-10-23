@@ -1,3 +1,4 @@
+import importlib
 from typing import Dict, List, Any
 import json
 import logging
@@ -11,16 +12,11 @@ from allennlp.data.fields import Field, TextField, LabelField, ListField, Metada
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
-import numpy as np
+from .quark import utilities
 
-from obqa.data.dataset_readers.common import read_cn5_surface_text_from_json, read_cn5_concat_subj_rel_obj_from_json, \
-    read_json_flexible, KnowSourceManager, get_key_and_value_by_key_match, tokenizer_dict_from_params, \
-    token_indexer_dict_from_params
-from obqa.data.dataset_readers.knowledge.rank_reader_flatchoices import RankReader_FlatChoices_v1
+from obqa.data.dataset_readers.common import tokenizer_dict_from_params, token_indexer_dict_from_params
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
-NO_RELEVANT_FACT_TEXT = "@norelevantfacts@"
 
 
 @DatasetReader.register("arc-multi-choice-w-facts-txt-json-multi-source")
@@ -49,13 +45,11 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
     """
 
     def __init__(self,
-                 external_know_config: Params,
+                 corpus: str,
                  field_tokenizers: Dict[str, Tokenizer] = None,
                  token_indexers: Dict[str, TokenIndexer] = None,
                  choice_value_type: str = None,
                  question_value_type: str = None,
-                 no_relevant_fact_add: bool = False,
-                 no_relevant_fact_text: str = NO_RELEVANT_FACT_TEXT,
                  lazy: bool = False,
                  ) -> None:
         super().__init__(lazy)
@@ -63,44 +57,9 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
         self._field_tokenizers = field_tokenizers or {"default": WordTokenizer()}
         self._default_tokenizer = self._field_tokenizers.get("default")
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
-        self._external_know_config = external_know_config
         self._question_value_type = question_value_type
-
         self._choice_value_type = choice_value_type
-
-        # add default fact that should be used as termination when no relevant facts are found.
-        self._no_relevant_fact_add = no_relevant_fact_add
-        self._no_relevant_fact_text = no_relevant_fact_text
-
-        # knowledge sources
-        key_to_reader = {
-            "cn5-surface-text": read_cn5_surface_text_from_json,
-            "cn5-concat-subj-rel-obj": read_cn5_concat_subj_rel_obj_from_json,
-            "flexible-json": read_json_flexible
-        }
-
-        key_to_rank_reader = {
-            "flat-q-ch-values-v1": RankReader_FlatChoices_v1(),
-        }
-
-        sources_usage = self._external_know_config.get("sources_use")
-        self.knowledge_source_managers = []
-
-        for ks_id, knowledge_source_config_single in enumerate(
-                [x for i, x in enumerate(self._external_know_config.get("sources")) if sources_usage[i]]):
-            know_source_manager = KnowSourceManager()
-            know_source_manager._knowledge_source_config_single = knowledge_source_config_single  # currently only one source is supported
-            know_source_manager._know_reader = key_to_reader[
-                knowledge_source_config_single.get("type")]  # this one is a method used for loading knowledge file
-            know_source_manager._know_rank_reader = key_to_rank_reader[knowledge_source_config_single.get(
-                "rank_reader_type")]  # this one is class used for loading fact weights
-            know_source_manager._use_know_cache = knowledge_source_config_single.get("max_facts_per_argument", False)
-            know_source_manager._max_facts_per_argument = knowledge_source_config_single.get("max_facts_per_argument")
-
-            know_source_manager._know_files_cache = {}
-            know_source_manager._know_rank_files_cache = {}
-
-            self.knowledge_source_managers.append(know_source_manager)
+        self._corpus = utilities.Corpus(cached_path(corpus))
 
     def get_question_text_from_item(self, item_json, question_value_type):
         question_text = item_json["question"]["stem"]
@@ -138,96 +97,51 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
 
     @overrides
     def _read(self, file_path: str):
-        # if `file_path` is a URL, redirect to the cache
-        file_path_original = file_path
-        file_path = cached_path(file_path)
-
-        know_data_list = []
-        know_rank_data_list = []
-        # Prepare knowledge
-        for ks_id, knowledge_source_manager in enumerate(self.knowledge_source_managers):
-            # load external knowledge
-            know_file_path = get_key_and_value_by_key_match(
-                knowledge_source_manager._knowledge_source_config_single.get("dataset_to_know_json_file"),
-                file_path_original, "any")
-            know_rank_file_path = get_key_and_value_by_key_match(
-                knowledge_source_manager._knowledge_source_config_single.get("dataset_to_know_rank_file"),
-                file_path_original, "any")
-
-            # facts
-            know_data = []
-            if know_file_path in knowledge_source_manager._know_files_cache:
-                know_data = knowledge_source_manager._know_files_cache[know_file_path]
-            else:
-                know_data = knowledge_source_manager._know_reader(know_file_path)
-                if knowledge_source_manager._use_know_cache:
-                    knowledge_source_manager._know_files_cache[know_file_path] = know_data
-            know_data_list.append(know_data)
-
-            # ranking
-            know_rank_data = []
-            if know_rank_file_path in knowledge_source_manager._know_rank_files_cache:
-                know_rank_data = knowledge_source_manager._know_files_cache[know_rank_file_path]
-            else:
-                know_rank_data = knowledge_source_manager._know_rank_reader.read_facts(know_rank_file_path)
-                if knowledge_source_manager._use_know_cache:
-                    knowledge_source_manager._know_files_cache[know_rank_file_path] = know_rank_data
-            know_rank_data_list.append(know_rank_data)
+        retrieval = "tushar"
+        retrieval_module = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + retrieval)
 
         # Read knowledge facts to instances
-        with open(file_path, 'r') as data_file:
-            logger.info("Reading ARC instances from jsonl dataset at: %s", file_path)
-            for line in data_file:
-                item_json = json.loads(line.strip())
+        file_path = cached_path(file_path)
+        logger.info("Reading ARC instances from jsonl dataset at: %s", file_path)
+        for item_json in retrieval_module.retrieve(file_path, self._corpus):
+            item_id = item_json["id"]
+            question_text = self.get_question_text_from_item(item_json, self._question_value_type)
 
-                item_id = item_json["id"]
-                question_text = self.get_question_text_from_item(item_json, self._question_value_type)
-
-                gold_facts_text_meta = {"gold_facts":
-                                            {"fact1": item_json.get("fact1", ""),
-                                             "fact2": item_json.get("fact2", "")}
+            gold_facts_text_meta = {"gold_facts":
+                                        {
+                                            "fact1": item_json.get("fact1", ""),
+                                            "fact2": item_json.get("fact2", "")
                                         }
+                                    }
 
-                choice_label_to_id = {}
-                choice_text_list = []
+            choice_label_to_id = {}
+            choice_text_list = []
 
-                for choice_id, choice_item in enumerate(item_json["question"]["choices"]):
-                    choice_label = choice_item["label"]
-                    choice_label_to_id[choice_label] = choice_id
+            for choice_id, choice_item in enumerate(item_json["question"]["choices"]):
+                choice_label = choice_item["label"]
+                choice_label_to_id[choice_label] = choice_id
 
-                    choice_text = self.get_choice_text_from_item(item_json, choice_id, self._choice_value_type)
-                    choice_text_list.append(choice_text)
+                choice_text = self.get_choice_text_from_item(item_json, choice_id, self._choice_value_type)
+                choice_text_list.append(choice_text)
 
-                answer_id = choice_label_to_id[item_json["answerKey"]]
+            answer_id = choice_label_to_id[item_json["answerKey"]]
 
-                # loading the facts from different sources
-                facts_text_list = []
-                question2facts_mapping = []
-                choice2facts_mapping = None
-                for ks_id, knowledge_source_manager in enumerate(self.knowledge_source_managers):
-                    max_facts_per_field = knowledge_source_manager.get_max_facts_per_argument(file_path_original)
-                    know_rank_data = know_rank_data_list[ks_id]
-                    know_data = know_data_list[ks_id]
-                    facts_text_list_curr, question2facts_mapping_curr, choice2facts_mapping_curr = \
-                        knowledge_source_manager._know_rank_reader.get_facts_text_with_weights_mask(know_rank_data,
-                                                                                                    know_data,
-                                                                                                    item_json,
-                                                                                                    max_facts_per_field)
+            # loading the facts from different sources
+            facts_text_list = set()
+            for choice in item_json['question']['choices']:
+                facts_text_list |= {
+                    support['text']
+                    for support in choice['support']
+                    if support['type'] == "sentence"
+                }
+            facts_text_list = list(facts_text_list)
 
-                    facts_text_list.extend(facts_text_list_curr)
-                    question2facts_mapping.extend(question2facts_mapping_curr)
-                    if choice2facts_mapping is None:
-                        choice2facts_mapping = choice2facts_mapping_curr
-                    else:
-                        for ch_id, ch_m in enumerate(choice2facts_mapping_curr):
-                            choice2facts_mapping[ch_id].extend(ch_m)
-
-                yield self.text_to_instance(item_id,
-                                            question_text,
-                                            choice_text_list,
-                                            facts_text_list,
-                                            answer_id,
-                                            gold_facts_text_meta)
+            yield self.text_to_instance(item_id,
+                                        question_text,
+                                        choice_text_list,
+                                        facts_text_list,
+                                        answer_id,
+                                        gold_facts_text_meta)
 
     def tokenize(self, text, tokenizer_name="default"):
         tokenizer = self._field_tokenizers.get(tokenizer_name, self._default_tokenizer)
@@ -279,25 +193,18 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
         field_tokenizers = tokenizer_dict_from_params(params.get('tokenizers', {}))
         token_indexers = token_indexer_dict_from_params(params.get('token_indexers', {}))
 
-        # external knowledge
-        external_knowledge_params = params.pop('external_knowledge')
-
+        corpus = params.get('corpus')
         choice_value_type = params.get('choice_value_type', None)
         question_value_type = params.get('question_value_type', None)
-
-        no_relevant_fact_add = params.get('no_relevant_fact_add', False)
-        no_relevant_fact_text = params.get('no_relevant_fact_text', NO_RELEVANT_FACT_TEXT)
 
         lazy = params.pop('lazy', False)
         # params.assert_empty(cls.__name__)
 
         return ArcMultiChoiceWithFactsTextJsonReaderMultiSource(field_tokenizers=field_tokenizers,
                                                                 token_indexers=token_indexers,
-                                                                external_know_config=external_knowledge_params,
+                                                                corpus=corpus,
                                                                 choice_value_type=choice_value_type,
                                                                 question_value_type=question_value_type,
-                                                                no_relevant_fact_add=no_relevant_fact_add,
-                                                                no_relevant_fact_text=no_relevant_fact_text,
                                                                 lazy=lazy)
 
     @classmethod
@@ -317,20 +224,7 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
                         "end_tokens": ["@end@"]
                     }
                 },
-                "external_knowledge": {
-                    "sources": [
-                        {
-                            "type": "flexible-json",
-                            "name": "reads json file",
-                            "use_cache": True,
-                            "dataset_to_know_json_file": {"any": "/inputs_knowledge/knowledge.json"},
-                            "dataset_to_know_rank_file": {"any": "/inputs_knowledge/full.jsonl.ranking.json"},
-                            "rank_reader_type": "flat-q-ch-values-v1",
-                            "max_facts_per_argument": 5
-                        }
-                    ],
-                    "sources_use": [True]
-                }
+                "corpus": "corpora/arc.txt.gz"
             },
         }
 

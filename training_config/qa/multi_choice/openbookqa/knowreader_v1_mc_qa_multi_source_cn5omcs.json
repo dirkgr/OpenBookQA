@@ -17,38 +17,7 @@
             "end_tokens": ["@end@"]
         }
     },
-    "external_knowledge": {
-        "sources": [
-            {
-              "type": "flexible-json",
-                "name": "cn5omcs",
-                "use_cache": true,
-                "dataset_to_know_json_file": {"any": "data/OpenBookQA-V1-Sep2018/Data/Main/ranked_knowledge/cn5omcs/knowledge.json"},
-                "dataset_to_know_rank_file": {"any": "data/OpenBookQA-V1-Sep2018/Data/Main/ranked_knowledge/cn5omcs/full.jsonl.ranking.json"},
-                "rank_reader_type": "flat-q-ch-values-v1",
-                "max_facts_per_argument": 5
-             },
-             {
-              "type": "flexible-json",
-                "name": "cn5wordnet",
-                "use_cache": true,
-                "dataset_to_know_json_file": {"any": "data/OpenBookQA-V1-Sep2018/Data/Main/ranked_knowledge/cn5wordnet/knowledge.json"},
-                "dataset_to_know_rank_file": {"any": "data/OpenBookQA-V1-Sep2018/Data/Main/ranked_knowledge/cn5wordnet/full.jsonl.ranking.json"},
-                "rank_reader_type": "flat-q-ch-values-v1",
-                "max_facts_per_argument": 5
-             },
-             {
-              "type": "flexible-json",
-                "name": "openbook",
-                "use_cache": true,
-                "dataset_to_know_json_file": {"any": "data/OpenBookQA-V1-Sep2018/Data/Main/ranked_knowledge/openbook/knowledge.json"},
-                "dataset_to_know_rank_file": {"any": "data/OpenBookQA-V1-Sep2018/Data/Main/ranked_knowledge/openbook/full.jsonl.ranking.json"},
-                "rank_reader_type": "flat-q-ch-values-v1",
-                "max_facts_per_argument": 5
-             },
-         ],
-      "sources_use": [true, false, false]
-    }
+    "corpus": "http://pip-package.dev.ai2/corpora/fplusk.txt.gz"
   },
   "train_data_path": "data/OpenBookQA-V1-Sep2018/Data/Main/train.jsonl",
   "validation_data_path": "data/OpenBookQA-V1-Sep2018/Data/Main/dev.jsonl",

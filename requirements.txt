@@ -1,2 +1,8 @@
 allennlp==0.7.0
 networkx>=2.0
+pystemmer
+cython
+pybloof
+dill
+mmh3
+lmdb
