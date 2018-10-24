@@ -129,11 +129,11 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
             # loading the facts from different sources
             facts_text_list = set()
             for choice in item_json['question']['choices']:
-                facts_text_list |= {
+                facts_text_list |= set([
                     support['text']
                     for support in choice['support']
                     if support['type'] == "sentence"
-                }
+                ][:100]) # only keep the top 100 results
             facts_text_list = list(facts_text_list)
 
             yield self.text_to_instance(item_id,
