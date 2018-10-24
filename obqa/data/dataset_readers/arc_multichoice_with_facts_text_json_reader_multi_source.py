@@ -127,19 +127,24 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
             answer_id = choice_label_to_id[item_json["answerKey"]]
 
             # loading the facts from different sources
-            facts_text_list = set()
+            facts = {}
             for choice in item_json['question']['choices']:
-                facts_text_list |= set([
-                    support['text']
+                support = (
+                    (support['text'], support['score'])
                     for support in choice['support']
                     if support['type'] == "sentence"
-                ][:100]) # only keep the top 100 results
-            facts_text_list = list(facts_text_list)
+                )
+                for text, score in support:
+                    old_score = facts.get(text, 0.0)
+                    facts[text] = old_score + score
+            facts = list(facts.items())
+            facts.sort(key=lambda x: (-x[1], len(x[0]), x[0]))  # sort by score desc, then length asc, then the text itself
+            facts = [f[0] for f in facts[:100]]
 
             yield self.text_to_instance(item_id,
                                         question_text,
                                         choice_text_list,
-                                        facts_text_list,
+                                        facts,
                                         answer_id,
                                         gold_facts_text_meta)
 
