@@ -17,7 +17,7 @@
             "end_tokens": ["@end@"]
         }
     },
-    "corpus": "http://pip-package.dev.ai2/corpora/cn5omcs.txt"
+    "corpus": "http://pip-package.dev.ai2/corpora/cn5_omcs.txt"
   },
   "train_data_path": "data/OpenBookQA-V1-Sep2018/Data/Main/train.jsonl",
   "validation_data_path": "data/OpenBookQA-V1-Sep2018/Data/Main/dev.jsonl",
