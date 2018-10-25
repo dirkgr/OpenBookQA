@@ -1,5 +1,5 @@
 import importlib
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Iterable
 import json
 import logging
 
@@ -45,7 +45,8 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
     """
 
     def __init__(self,
-                 corpus: str,
+                 retrieval: str,
+                 corpora: Iterable[str],
                  field_tokenizers: Dict[str, Tokenizer] = None,
                  token_indexers: Dict[str, TokenIndexer] = None,
                  choice_value_type: str = None,
@@ -54,12 +55,14 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
                  ) -> None:
         super().__init__(lazy)
 
+        self._retrieval = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + retrieval)
         self._field_tokenizers = field_tokenizers or {"default": WordTokenizer()}
         self._default_tokenizer = self._field_tokenizers.get("default")
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
         self._question_value_type = question_value_type
         self._choice_value_type = choice_value_type
-        self._corpus = utilities.Corpus(cached_path(corpus))
+        corpora = map(cached_path, corpora)
+        self._corpus = utilities.Corpus("+".join(corpora))
 
     def get_question_text_from_item(self, item_json, question_value_type):
         question_text = item_json["question"]["stem"]
@@ -97,13 +100,10 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
 
     @overrides
     def _read(self, file_path: str):
-        retrieval = "tushar"
-        retrieval_module = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + retrieval)
-
         # Read knowledge facts to instances
         file_path = cached_path(file_path)
         logger.info("Reading ARC instances from jsonl dataset at: %s", file_path)
-        for item_json in retrieval_module.retrieve(file_path, self._corpus):
+        for item_json in self._retrieval.retrieve(file_path, self._corpus):
             item_id = item_json["id"]
             question_text = self.get_question_text_from_item(item_json, self._question_value_type)
 
@@ -198,7 +198,8 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
         field_tokenizers = tokenizer_dict_from_params(params.get('tokenizers', {}))
         token_indexers = token_indexer_dict_from_params(params.get('token_indexers', {}))
 
-        corpus = params.get('corpus')
+        retrieval = params.get('retrieval')
+        corpora = params.get('corpora')
         choice_value_type = params.get('choice_value_type', None)
         question_value_type = params.get('question_value_type', None)
 
@@ -207,7 +208,8 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
 
         return ArcMultiChoiceWithFactsTextJsonReaderMultiSource(field_tokenizers=field_tokenizers,
                                                                 token_indexers=token_indexers,
-                                                                corpus=corpus,
+                                                                retrieval=retrieval,
+                                                                corpora=corpora,
                                                                 choice_value_type=choice_value_type,
                                                                 question_value_type=question_value_type,
                                                                 lazy=lazy)
