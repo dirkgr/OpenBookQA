@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-set -x
-set -e
+set -Eeuxo pipefail
 
 FINAL_EXPERIMENT_DIR=$1
 shift
@@ -10,8 +9,7 @@ test -e $FINAL_EXPERIMENT_DIR && (echo "$FINAL_EXPERIMENT_DIR exists, bailing" &
 NUMBER_OF_RUNS=5
 
 function run_experiment() {
-  set -x
-  set -e
+  set -Eeuxo pipefail
 
   CONFIG=$1
   shift
@@ -19,23 +17,29 @@ function run_experiment() {
   shift
   OUTPUT_DIR=$1
   shift
+  mkdir -p "$OUTPUT_DIR/$(basename $CONFIG .json)"
+  LOG_OUTPUT="$OUTPUT_DIR/$(basename $CONFIG .json)/log$SPLIT.txt"
   OUTPUT_DIR="$OUTPUT_DIR/$(basename $CONFIG .json)/run$SPLIT"
 
   export RANDOM_SEED=${RANDOM}
-  python -u obqa/run.py train "${CONFIG}" -s "${OUTPUT_DIR}" "$@"
+  echo "*** Training $CONFIG/$SPLIT ***" | tee "$LOG_OUTPUT"
+  python -u obqa/run.py train "${CONFIG}" -s "${OUTPUT_DIR}" "$@" 2>&1 | tee -a "$LOG_OUTPUT"
   # evaluate without attentions
-  python obqa/run.py evaluate_predictions_qa_mc --archive_file "${OUTPUT_DIR}/model.tar.gz" --output_file "${OUTPUT_DIR}/predictions"
+  echo "*** Evaluating $CONFIG/$SPLIT ***" | tee -a "$LOG_OUTPUT"
+  python obqa/run.py evaluate_predictions_qa_mc --archive_file "${OUTPUT_DIR}/model.tar.gz" --output_file "${OUTPUT_DIR}/predictions" 2>&1 | tee -a "$LOG_OUTPUT"
 
   # convert evaluation to aristo-eval json
-  python tools/predictions_to_aristo_eval_json.py "${OUTPUT_DIR}/predictions_dev.txt" > "${OUTPUT_DIR}/aristo_evaluator_predictions_dev.txt"
-  python tools/predictions_to_aristo_eval_json.py "${OUTPUT_DIR}/predictions_test.txt" > "${OUTPUT_DIR}/aristo_evaluator_predictions_test.txt"
+  echo "*** Making aristo predictions for $CONFIG/$SPLIT ***" | tee -a "$LOG_OUTPUT"
+  python tools/predictions_to_aristo_eval_json.py "${OUTPUT_DIR}/predictions_dev.txt" > "${OUTPUT_DIR}/aristo_evaluator_predictions_dev.txt" 2>&1 | tee -a "$LOG_OUTPUT"
+  python tools/predictions_to_aristo_eval_json.py "${OUTPUT_DIR}/predictions_test.txt" > "${OUTPUT_DIR}/aristo_evaluator_predictions_test.txt" 2>&1 | tee -a "$LOG_OUTPUT"
 
   # try to export also attentions. This will fail for no-knowledge models
   knowledge_model_name="qa_multi_choice_know_reader_v1"
   if grep -q ${knowledge_model_name} "${CONFIG}"; then
-      echo "${knowledge_model_name} is used in the config $(basename $CONFIG). Exporting attentions values for dev and test."
-      python obqa/run.py evaluate_predictions_qa_mc_know_visualize --archive_file "${OUTPUT_DIR}/model.tar.gz" --output_file "${OUTPUT_DIR}/predictions_visual"
+      echo "*** Exporting attention values for dev and test for $CONFIG/$SPLIT ***" | tee -a "$LOG_OUTPUT"
+      python obqa/run.py evaluate_predictions_qa_mc_know_visualize --archive_file "${OUTPUT_DIR}/model.tar.gz" --output_file "${OUTPUT_DIR}/predictions_visual" 2>&1 | tee -a "$LOG_OUTPUT"
   fi
+  echo "*** Done with $CONFIG/$SPLIT! ***" | tee -a "$LOG_OUTPUT"
 }
 export -f run_experiment  # needed so parallel can call the function
 
