@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-import utilities
+from .. import utilities
 from allennlp.common.util import JsonDict
 import typing
 import json
 
-from external.todor.data.knowledge.readers.simple_reader_arc_qa_question_choice import SimpleReaderARC_Question_Choice
+from ....retrieval.knowledge.readers.simple_reader_arc_qa_question_choice import SimpleReaderARC_Question_Choice
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import pairwise_distances
 import numpy as np

@@ -4,7 +4,7 @@ import json
 
 from allennlp.commands.elmo import ElmoEmbedder
 
-import utilities
+from .. import utilities
 from allennlp.common.util import JsonDict
 from nltk.tokenize import word_tokenize
 from tqdm import tqdm

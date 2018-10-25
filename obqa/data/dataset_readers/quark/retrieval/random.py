@@ -88,7 +88,7 @@ facts we get from OpenBookQA.
 
 import typing
 import json
-import utilities
+from .. import utilities
 from allennlp.common.util import JsonDict
 import random
 import logging

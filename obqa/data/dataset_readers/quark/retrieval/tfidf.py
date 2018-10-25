@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import utilities
+from .. import utilities
 from allennlp.common.util import JsonDict
 import typing
 import json

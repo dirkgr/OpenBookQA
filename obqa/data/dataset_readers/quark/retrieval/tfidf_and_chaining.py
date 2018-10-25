@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from typing import *
 import json
-import utilities
+from .. import utilities
 from allennlp.common.util import JsonDict
 from nltk.tokenize import word_tokenize
 from tqdm import tqdm
