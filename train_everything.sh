@@ -52,7 +52,7 @@ CONFIGS=( \
   training_config/qa/multi_choice/openbookqa/knowreader_v1_mc_qa_multi_source_openbook_plus_cn5wordnet.json \
 )
 
-parallel --shuf --halt now,fail=1 --line-buffer -j3 -q run_experiment {1} {2} "$FINAL_EXPERIMENT_DIR" "$@" ::: ${CONFIGS[*]} ::: $(seq $NUMBER_OF_RUNS)
+parallel --halt now,fail=1 --line-buffer -j3 -q run_experiment {2} {1} "$FINAL_EXPERIMENT_DIR" "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]}
 
 for CONFIG in ${CONFIGS[*]}; do
   CONFIG=$(basename $CONFIG .json)
