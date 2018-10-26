@@ -120,7 +120,8 @@ def retrieve(questions_file: str, corpus: utilities.Corpus, distractors: int = 0
             support = [
                 {
                     "text": s,
-                    "type": "sentence"
+                    "type": "sentence",
+                    "score": 1.0
                 } for s in sentences_for_this_choice
             ]
             choices.append({
