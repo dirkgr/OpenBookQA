@@ -32,7 +32,7 @@
     "text_field_embedder": {
       "tokens": {
         "type": "embedding",
-        "pretrained_file": "data/glove/glove.840B.300d.txt.gz",
+        "pretrained_file": "http://pip-package.dev.ai2/glove/glove.840B.300d.txt.gz",
         "embedding_dim": 300,
         "trainable": false
       }
