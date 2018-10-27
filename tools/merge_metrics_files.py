@@ -12,8 +12,8 @@ def escape_for_beaker(str):
     return re.sub(r'[^A-Za-z_\-0-9]', '-', str)
 
 if __name__ == "__main__":
-    input_files = sys.argv[1]
-    out_file = sys.argv[2]
+    input_files = sys.argv[1:-1]
+    out_file = sys.argv[-1]
     aggregate_mode = "all"
 
     default = "avg"
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     else:
         aggregate_modes = [aggregate_mode]
 
-    input_files_list = [x for x in input_files.split(";") if len(x) > 0]
+    input_files_list = [x for x in input_files if len(x) > 0]
 
     full_metrics = {"__raw_metrics": {}}
     combined_metrics_temp = {}
