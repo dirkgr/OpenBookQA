@@ -1,5 +1,5 @@
 allennlp==0.7.1
-cython
+Cython
 networkx>=2.0
 pystemmer
 pybloof
