@@ -15,6 +15,7 @@ from functools import lru_cache
 import multiprocessing as mp
 import ctypes
 import itertools
+from allennlp.common.file_utils import cached_path
 
 # Determined on the dev set that these numbers give us the correct results for 90% of the questions.
 F_CUTOFF = 38
@@ -24,7 +25,7 @@ def retrieve(
     questions_file: str,
     corpus: utilities.Corpus
 ) -> Generator[JsonDict, None, None]:
-    f_corpus = utilities.Corpus("corpora/f.txt.gz")
+    f_corpus = utilities.Corpus(cached_path("http://pip-package.dev.ai2/corpora/f.txt.gz"))
     f_sentences = {sentence for sentence in f_corpus.unique_lines()}
 
     stem: Callable[[str], str] = Stemmer.Stemmer('english').stemWord
@@ -64,7 +65,7 @@ def retrieve(
     logging.info("Loading word statistics")
     @utilities.memoize([stem], version=1)
     def load_word_statistics():
-        return tushar.load_stats(tushar.DEFAULT_WORD_STATS_LOCATION, None, stem)
+        return tushar.load_stats(cached_path(tushar.DEFAULT_WORD_STATS_LOCATION), None, stem)
     df_tokens, doc_count = load_word_statistics()
 
     logging.info("Reading corpus")
