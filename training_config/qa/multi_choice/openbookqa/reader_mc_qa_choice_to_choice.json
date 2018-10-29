@@ -1,7 +1,7 @@
 {
-  "random_seed": 13370,
-  "pytorch_seed": 1337,
-  "numpy_seed": 42,
+  "random_seed": std.parseInt(std.extVar("RANDOM_SEED")),
+  "pytorch_seed": std.parseInt(std.extVar("RANDOM_SEED")),
+  "numpy_seed": std.parseInt(std.extVar("RANDOM_SEED")),
   "dataset_reader": {
     "type": "arc-multi-choice-json",
     "question_value_type": "question",
