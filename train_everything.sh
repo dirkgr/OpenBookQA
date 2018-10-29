@@ -17,13 +17,24 @@ function run_experiment() {
   shift
   OUTPUT_DIR=$1
   shift
+
   mkdir -p "$OUTPUT_DIR/$(basename $CONFIG .json)"
   LOG_OUTPUT="$OUTPUT_DIR/$(basename $CONFIG .json)/log$SPLIT.txt"
   OUTPUT_DIR="$OUTPUT_DIR/$(basename $CONFIG .json)/run$SPLIT"
 
-  export RANDOM_SEED=${RANDOM}
-  echo "*** Training $CONFIG/$SPLIT ***" | tee "$LOG_OUTPUT"
-  python -u obqa/run.py train "${CONFIG}" -s "${OUTPUT_DIR}" "$@" 2>&1 | tee -a "$LOG_OUTPUT"
+  GPU_COUNT=$(nvidia-smi -L | wc -l)
+  for GPU_NUMBER in $(seq 0 $(($GPU_COUNT-1))); do
+    flock -w 1 /tmp/gpu$GPU_NUMBER.lck echo "Using GPU $GPU_NUMBER" && break
+  done
+  
+  (
+    flock -s 200
+    export CUDA_VISIBLE_DEVICES=$GPU_NUMBER
+    export RANDOM_SEED=${RANDOM}
+    echo "*** Training $CONFIG/$SPLIT ***" | tee "$LOG_OUTPUT"
+    python -u obqa/run.py train "${CONFIG}" -s "${OUTPUT_DIR}" -o "{trainer:{cuda_device:0}}" "$@" 2>&1 | tee -a "$LOG_OUTPUT"
+  ) 200> /tmp/gpu$GPU_NUMBER.lck
+
   # evaluate without attentions
   echo "*** Evaluating $CONFIG/$SPLIT ***" | tee -a "$LOG_OUTPUT"
   python obqa/run.py evaluate_predictions_qa_mc --archive_file "${OUTPUT_DIR}/model.tar.gz" --output_file "${OUTPUT_DIR}/predictions" 2>&1 | tee -a "$LOG_OUTPUT"
@@ -56,7 +67,7 @@ CONFIGS=( \
   training_config/qa/multi_choice/openbookqa/knowreader_v1_mc_qa_multi_source_openbook_plus_cn5wordnet.json \
 )
 
-parallel --halt now,fail=1 --line-buffer -j2 -q run_experiment {2} {1} "$FINAL_EXPERIMENT_DIR" "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]}
+parallel --halt 2 --line-buffer --jobs $(nvidia-smi -L | wc -l) -q run_experiment {2} {1} "$FINAL_EXPERIMENT_DIR" "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]}
 
 for CONFIG in ${CONFIGS[*]}; do
   CONFIG=$(basename $CONFIG .json)
