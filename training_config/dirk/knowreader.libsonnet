@@ -1,0 +1,134 @@
+{
+  knowreader_config(corpora, retrieval): {
+    "random_seed": std.parseInt(std.extVar("RANDOM_SEED")),
+    "pytorch_seed": std.parseInt(std.extVar("RANDOM_SEED")),
+    "numpy_seed": std.parseInt(std.extVar("RANDOM_SEED")),
+    "dataset_reader": {
+      "type": "arc-multi-choice-w-facts-txt-json-multi-source",
+      "question_value_type": "question",
+      "token_indexers": {
+          "tokens": {
+              "type": "single_id",
+              "lowercase_tokens": true
+          }
+      },
+      "tokenizers": {
+          "default": {
+              "start_tokens": ["@start@"],
+              "end_tokens": ["@end@"]
+          }
+      },
+      "corpora": corpora,
+      "retrieval": retrieval
+    },
+    "train_data_path": "http://pip-package.dev.ai2/questions/OpenBookQA/train.jsonl",
+    "validation_data_path": "http://pip-package.dev.ai2/questions/OpenBookQA/dev.jsonl",
+    "test_data_path": "http://pip-package.dev.ai2/questions/OpenBookQA/test.jsonl",
+    "evaluate_on_test": true,
+    "model": {
+      "type": "qa_multi_choice_know_reader_v1",
+      "text_field_embedder": {
+        "tokens": {
+          "type": "embedding",
+          "pretrained_file": "http://pip-package.dev.ai2/glove/glove.840B.300d.txt.gz",
+          "embedding_dim": 300,
+          "trainable": false
+        }
+      },
+      "use_ctx2facts_retrieval_map_as_mask": false,
+      "embeddings_dropout": 0.5,
+      "question_encoder": {
+        "type": "lstm",
+        "bidirectional": true,
+        "num_layers": 1,
+        "input_size": 300,
+        "hidden_size": 128,
+      },
+      "question_encoder_aggregate": "max", //max, avg, sum, last
+      "share_encoders": true,
+      "choice_encoder": {
+        "type": "lstm",
+        "bidirectional": true,
+        "num_layers": 1,
+        "input_size": 300,
+        "hidden_size": 128,  // same as premise encoder!
+      },
+      "choice_encoder_aggregate": "max",  //max, avg, sum, last
+      "att_question_to_choice": {
+        "type": "linear_extended", // "linear", "dot",
+        "combination": "x,y,x*y,abs(x-y)",
+        "tensor_1_dim": 0,
+        "tensor_2_dim": 0,
+        "activation": "linear"
+      },
+      "share_att_question_to_choice_and_att_text_to_facts": false,
+      "att_text_to_facts": {
+        "type": "dot_product"
+      },
+  //    "att_text_to_facts": {
+  //      "type": "linear_extended", // "linear", "dot",
+  //      "combination": "x*y,abs(x-y)",
+  //      "tensor_1_dim": 0,
+  //      "tensor_2_dim": 0,
+  //      "activation": "linear"
+  //    },
+      "text_plus_knowledge_repr":{
+        "type": "weighted_sum",
+        "keep_context_threshold": 0.5,
+        "activation": "linear"
+      },
+      "know_interactions" : {
+        "interactions": [["ctx", "ctx"], ["ctx+kn", "ctx"], ["ctx", "ctx+kn"], ["ctx+kn", "ctx+kn"],
+                        ["kn", "kn"], ["kn", "ctx+kn"], ["ctx+kn", "kn"], ["kn", "ctx"], ["ctx", "kn"]],
+        "aggregate_feedforward": {
+          "input_dim": 4,  // Inferred automatically to len(interactions)
+          "num_layers": 1,
+          "hidden_dims": [1],
+          "activations": ["linear"],
+          "dropout": [0.0]
+        }
+      },
+      "use_knowledge": true,
+      "knowledge_encoder": {
+        "type": "lstm",
+        "bidirectional": true,
+        "num_layers": 1,
+        "input_size": 300,
+        "hidden_size": 128,
+      },
+      "knowledge_encoder_aggregate": "max", //max, avg, sum, last
+      "initializer": [
+        [".*_know_aggregate_feedforward.*linear_layers.*weight", {"type": "constant", "val": 1.0}],
+        [".*_know_aggregate_feedforward.*linear_layers.*bias", {"type": "constant", "val": 0.0}],
+        [".*\\.weight_.*", {"type": "xavier_normal"}],
+        [".*linear_layers.*weight", {"type": "xavier_normal"}],
+        [".*token_embedder_tokens\\._projection.*weight", {"type": "xavier_normal"}],
+        [".*_question_encoder\\._module.*weight.*", {"type": "xavier_normal"}],
+      ]
+    },
+
+    "iterator": {
+      "type": "bucket",
+      "sorting_keys": [["question", "num_tokens"]],
+      "batch_size": 32
+    },
+    "trainer": {
+      "num_epochs": 40,
+      "patience": 20,
+      "cuda_device": -1,
+      "validation_metric": "+accuracy",
+      "num_serialized_models_to_keep": 1,
+      "optimizer": {
+        "type": "adam",
+        "lr": 0.001
+      },
+      "grad_norm":10,
+      "learning_rate_scheduler": {
+        "type": "reduce_on_plateau",
+        "factor": 0.8,
+        "mode": "max",
+        "patience": 8
+      }
+    }
+  }
+}
