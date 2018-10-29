@@ -1,3 +1,2 @@
-git+https://github.com/tbmihailov/allennlp.git@work-v0.2-functions
-
+allennlp==0.7.0
 networkx>=2.0
