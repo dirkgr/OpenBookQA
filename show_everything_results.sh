@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
+export METRIC=$1
+shift
 EXPERIMENT=$1
+shift
 
 set -e
 
-ls -1 $EXPERIMENT/*/metrics.json | \
-parallel 'echo {} $(jq .test_accuracy_avg {})' | \
+ls -1 $EXPERIMENT/*.json | \
+parallel 'echo {} $(jq .$METRIC {})' | \
 sort | \
-sed -e "s/\/metrics.json//" | \
-sed -Ee 's/\.json_([0-9][0-9]-){6}r[0-9]+//' | \
+sed -Ee 's/\.json//' | \
 sed -e "s/^[^ ]*\/\+//" | \
 csvtool -t " " -u TAB transpose -
