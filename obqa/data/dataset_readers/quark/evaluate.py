@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-import scoring
+from . import scoring
 import importlib
 import logging
-import utilities
+from . import utilities
 from allennlp.common.util import JsonDict
-
+from allennlp.common.file_utils import cached_path
 
 def main():
     logging.getLogger().setLevel(logging.DEBUG)
@@ -40,7 +40,7 @@ def main():
     logging.getLogger("qa").addHandler(logging.FileHandler("qa.log", mode="w"))
     logging.getLogger("qa").propagate = False
 
-    retrieval_module = importlib.import_module("retrieval." + args.retrieval)
+    retrieval_module = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + args.retrieval)
     qa_module = importlib.import_module("qa." + args.qa)
 
     corpus = utilities.Corpus(args.corpus)
@@ -49,7 +49,7 @@ def main():
     f_cutoff = retrieval_module.F_CUTOFF
     k_cutoff = retrieval_module.K_CUTOFF
     if not args.no_cutoff and f_cutoff is not None and k_cutoff is not None:
-        f_corpus = utilities.Corpus("corpora/f.txt.gz")
+        f_corpus = utilities.Corpus(cached_path("http://pip-package.dev.ai2/corpora/f.txt.gz"))
         f_sentences = {sentence.lower() for sentence in f_corpus.unique_lines()}
 
         def apply_f_and_k_cutoff(q: JsonDict) -> JsonDict:

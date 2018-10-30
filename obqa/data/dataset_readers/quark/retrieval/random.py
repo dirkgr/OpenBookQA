@@ -106,7 +106,8 @@ def retrieve(questions_file: str, corpus: utilities.Corpus, sentence_count: int 
             choice["support"] = [
                 {
                     "text": s,
-                    "type": "sentence"
+                    "type": "sentence",
+                    "score": random.uniform(0, 1)
                 } for s in retrieved_sentences
             ]
         yield question

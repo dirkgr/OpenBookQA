@@ -1,16 +1,17 @@
 #!/usr/bin/python3
 
 import importlib
-import utilities
+from . import utilities
 import logging
 import typing
+from allennlp.common.file_utils import cached_path
 
 def main():
     logging.getLogger().setLevel(logging.DEBUG)
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='Find out how well the woverlap solver does with distractors')
+    parser = argparse.ArgumentParser(description='Find out how well retrieval works by itself')
     parser.add_argument(
         '--questions', '-q',
         help='Filename of the question set to try',
@@ -31,11 +32,11 @@ def main():
     logging.getLogger("retrieval").addHandler(logging.FileHandler("retrieval.log", mode="w"))
     logging.getLogger("retrieval").propagate = False
 
-    corpus = utilities.Corpus(args.corpus)
-    retrieval_module = importlib.import_module("retrieval." + args.retrieval)
-    questions_with_text = retrieval_module.retrieve(args.questions, corpus)
+    corpus = utilities.Corpus(cached_path(args.corpus))
+    retrieval_module = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + args.retrieval)
+    questions_with_text = retrieval_module.retrieve(cached_path(args.questions), corpus)
 
-    f_corpus = utilities.Corpus("corpora/f.txt.gz")
+    f_corpus = utilities.Corpus(cached_path("http://pip-package.dev.ai2/corpora/f.txt.gz"))
     f_sentences = {sentence.lower() for sentence in f_corpus.unique_lines()}
 
     rank_to_qids_fact1: typing.Dict[int, set] = {}
