@@ -1,3 +1,9 @@
 local lib = import 'knowreader.libsonnet';
 
-lib.knowreader_config(["http://pip-package.dev.ai2/corpora/fplusk.txt.gz"], "gold")
+lib.knowreader_config(
+  ["http://pip-package.dev.ai2/corpora/fplusk.txt.gz"],
+  {
+    type: "gold",
+    distractors: 10
+  }
+)

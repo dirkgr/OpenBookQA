@@ -43,13 +43,9 @@ function run_experiment() {
 }
 export -f run_experiment  # needed so parallel can call the function
 
-CONFIGS=( \
-  training_config/dirk/tfidf_and_chaining.json \
-  training_config/dirk/tushar.json \
-  training_config/dirk/gold.json
-)
+CONFIGS=(training_config/dirk/gold.json)
 
-parallel --halt 2 --line-buffer -j2 -q run_experiment {2} {1} "$FINAL_EXPERIMENT_DIR" "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]}
+parallel --halt 2 --line-buffer -j2 -q run_experiment {2} {1} "$FINAL_EXPERIMENT_DIR" -o '{dataset_reader:{retrieval:{distractors:{3}}}}' "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]} ::: $(seq 10)
 
 for CONFIG in ${CONFIGS[*]}; do
   CONFIG=$(basename $CONFIG .json)

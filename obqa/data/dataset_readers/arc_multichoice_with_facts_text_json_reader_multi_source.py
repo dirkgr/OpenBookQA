@@ -1,11 +1,11 @@
 import importlib
-from typing import Dict, List, Any, Iterable
+from typing import *
 import json
 import logging
 
 from overrides import overrides
 
-from allennlp.common import Params
+from allennlp.common import Params, JsonDict
 from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import Field, TextField, LabelField, ListField, MetadataField, ArrayField
@@ -45,7 +45,7 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
     """
 
     def __init__(self,
-                 retrieval: str,
+                 retrieval: Union[str, JsonDict],
                  corpora: Iterable[str],
                  field_tokenizers: Dict[str, Tokenizer] = None,
                  token_indexers: Dict[str, TokenIndexer] = None,
@@ -55,7 +55,14 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
                  ) -> None:
         super().__init__(lazy)
 
-        self._retrieval = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + retrieval)
+        if isinstance(retrieval, str):
+            self._retrieval = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + retrieval)
+            self._retrieval_config = {}
+        else:
+            self._retrieval = importlib.import_module("obqa.data.dataset_readers.quark.retrieval." + retrieval["type"])
+            self._retrieval_config = retrieval
+            del self._retrieval_config['type']
+
         self._field_tokenizers = field_tokenizers or {"default": WordTokenizer()}
         self._default_tokenizer = self._field_tokenizers.get("default")
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -103,16 +110,16 @@ class ArcMultiChoiceWithFactsTextJsonReaderMultiSource(DatasetReader):
         # Read knowledge facts to instances
         file_path = cached_path(file_path)
         logger.info("Reading ARC instances from jsonl dataset at: %s", file_path)
-        for item_json in self._retrieval.retrieve(file_path, self._corpus):
+        for item_json in self._retrieval.retrieve(file_path, self._corpus, **self._retrieval_config):
             item_id = item_json["id"]
             question_text = self.get_question_text_from_item(item_json, self._question_value_type)
 
-            gold_facts_text_meta = {"gold_facts":
-                                        {
-                                            "fact1": item_json.get("fact1", ""),
-                                            "fact2": item_json.get("fact2", "")
-                                        }
-                                    }
+            gold_facts_text_meta = {
+                "gold_facts": {
+                        "fact1": item_json.get("fact1", ""),
+                        "fact2": item_json.get("fact2", "")
+                    }
+                }
 
             choice_label_to_id = {}
             choice_text_list = []

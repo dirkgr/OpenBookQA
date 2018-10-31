@@ -96,7 +96,7 @@ import logging
 F_CUTOFF = 1
 K_CUTOFF = 1
 
-def retrieve(questions_file: str, corpus: utilities.Corpus, distractors: int = 0) -> typing.Generator[JsonDict, None, None]:
+def retrieve(questions_file: str, corpus: utilities.Corpus, *, distractors: int = 0) -> typing.Generator[JsonDict, None, None]:
     if distractors > 0:
         corpus_name = corpus.short_name()
         logging.info("Loading corpus %s", corpus_name)
@@ -106,38 +106,19 @@ def retrieve(questions_file: str, corpus: utilities.Corpus, distractors: int = 0
         corpus = set()
 
     for question in utilities.json_from_file(questions_file):
-        (identifier, question, answer_key, fact1, fact2) = \
-            utilities.parse_dict(question, "id", "question", "answerKey", "fact1", "fact2")
-        (question_stem, question_choices) = \
-            utilities.parse_dict(question, "stem", "choices")
-
-        fact_sentences = {fact1, fact2}
+        fact_sentences = {question['fact1'], question['fact2']}
         corpus_without_facts = list(corpus - fact_sentences)
-        choices = []
-        for choice in question_choices:
+        for choice in question['question']['choices']:
             distractor_sentences = set(random.sample(corpus_without_facts, distractors))
             sentences_for_this_choice = fact_sentences | distractor_sentences
-            support = [
+            choice['support'] = [
                 {
                     "text": s,
                     "type": "sentence",
-                    "score": 1.0
-                } for s in sentences_for_this_choice
+                    "score": 1 / (i + 1)
+                } for i, s in enumerate(sentences_for_this_choice)
             ]
-            choices.append({
-                "text": choice["text"],
-                "label": choice["label"],
-                "support": support
-            })
-        result = {
-            "id": identifier,
-            "question": {
-                "stem": question_stem,
-                "choices": choices
-            },
-            "answerKey": answer_key
-        }
-        yield result
+        yield question
 
 def main():
     import argparse
@@ -161,7 +142,7 @@ def main():
     args = parser.parse_args()
 
     with utilities.file_or_stdout(args.output) as output:
-        for q_with_text in retrieve(args.questions, utilities.Corpus(args.corpus), args.distractors):
+        for q_with_text in retrieve(args.questions, utilities.Corpus(args.corpus), distractors=args.distractors):
             output.write(json.dumps(q_with_text))
             output.write("\n")
 
