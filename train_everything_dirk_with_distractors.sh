@@ -13,13 +13,15 @@ function run_experiment() {
 
   CONFIG=$1
   shift
+  export DISTRACTORS=$1
+  shift
   SPLIT=$1
   shift
   OUTPUT_DIR=$1
   shift
-  mkdir -p "$OUTPUT_DIR/$(basename $CONFIG .json)"
-  LOG_OUTPUT="$OUTPUT_DIR/$(basename $CONFIG .json)/log$SPLIT.txt"
-  OUTPUT_DIR="$OUTPUT_DIR/$(basename $CONFIG .json)/run$SPLIT"
+  mkdir -p "$OUTPUT_DIR/$(basename $CONFIG .json)_d$DISTRACTORS"
+  LOG_OUTPUT="$OUTPUT_DIR/$(basename $CONFIG .json)_d$DISTRACTORS/log$SPLIT.txt"
+  OUTPUT_DIR="$OUTPUT_DIR/$(basename $CONFIG .json)_d$DISTRACTORS/run$SPLIT"
 
   export RANDOM_SEED=${RANDOM}
   echo "*** Training $CONFIG/$SPLIT ***" | tee "$LOG_OUTPUT"
@@ -45,7 +47,7 @@ export -f run_experiment  # needed so parallel can call the function
 
 CONFIGS=(training_config/dirk/gold.json)
 
-parallel --halt 2 --line-buffer -j2 -q run_experiment {2} {3}_{1} "$FINAL_EXPERIMENT_DIR" -o '{"dataset_reader":{"retrieval":{"distractors":{3}}}}' "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]} ::: $(seq 10)
+parallel --halt 2 --line-buffer -j2 -q run_experiment {2} {3} {1} "$FINAL_EXPERIMENT_DIR" "$@" ::: $(seq $NUMBER_OF_RUNS) ::: ${CONFIGS[*]} ::: $(seq 10)
 
 for CONFIG in ${CONFIGS[*]}; do
   CONFIG=$(basename $CONFIG .json)
